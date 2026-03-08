@@ -18,6 +18,7 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
 };
 
+
 export default function LoginScreen({navigation}: Props) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -97,7 +98,10 @@ export default function LoginScreen({navigation}: Props) {
             </View>
 
             {/* Sign in button */}
-            <TouchableOpacity style={styles.btnPrimary} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.btnPrimary}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('PostalCode')}>
               <Text style={styles.btnPrimaryText}>Sign in</Text>
             </TouchableOpacity>
 

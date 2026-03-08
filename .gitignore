@@ -75,3 +75,7 @@ yarn-error.log
 
 # Claude
 .claude/
+
+# Environment variables
+.env
+.env.local

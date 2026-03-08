@@ -11,6 +11,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RootStackParamList} from '../../App';
 
@@ -24,7 +25,7 @@ export default function SignupScreen({navigation}: Props) {
   const [agreed, setAgreed] = useState(false);
 
   return (
-    <View style={styles.root}>
+    <SafeAreaView style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#0d0d0d" />
 
       {/* Ambient glows */}
@@ -180,7 +181,7 @@ export default function SignupScreen({navigation}: Props) {
 
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 

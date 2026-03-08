@@ -11,6 +11,7 @@ import {
   Dimensions,
 } from 'react-native';
 import {Platform} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import MapView, {Marker, PROVIDER_GOOGLE} from 'react-native-maps';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -130,7 +131,7 @@ export default function MapScreen({navigation, route}: Props) {
   });
 
   return (
-    <View style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#0d0d0d" />
 
       {/* Header */}
@@ -247,7 +248,7 @@ export default function MapScreen({navigation, route}: Props) {
           );
         })}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

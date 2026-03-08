@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
-import {Platform} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import MapView, {Marker, PROVIDER_GOOGLE} from 'react-native-maps';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -57,76 +58,93 @@ function getCityCoords(city: string): {lat: number; lng: number} {
   return {lat: 43.6532, lng: -79.3832};
 }
 
-// Build mock orgs around the city center — replaced with Supabase data later
-function buildMockOrgs(center: {lat: number; lng: number}) {
-  return [
-    {
-      id: '1',
-      name: 'Masjid Al-Noor',
-      type: 'Masjid',
-      distance: '0.3 km',
-      campaign: 'Ramadan Food Drive',
-      raised: 4200,
-      goal: 8000,
-      emoji: '🕌',
-      lat: center.lat + 0.000,
-      lng: center.lng + 0.000,
-    },
-    {
-      id: '2',
-      name: 'Islamic Relief Canada',
-      type: 'Charity',
-      distance: '1.2 km',
-      campaign: 'Winter Clothing Drive',
-      raised: 12500,
-      goal: 20000,
-      emoji: '🤲',
-      lat: center.lat + 0.008,
-      lng: center.lng - 0.007,
-    },
-    {
-      id: '3',
-      name: 'Masjid Ibn Taymiyyah',
-      type: 'Masjid',
-      distance: '2.1 km',
-      campaign: 'Masjid Renovation',
-      raised: 31000,
-      goal: 50000,
-      emoji: '🕌',
-      lat: center.lat - 0.005,
-      lng: center.lng + 0.008,
-    },
-    {
-      id: '4',
-      name: 'Zakat Foundation',
-      type: 'Charity',
-      distance: '3.4 km',
-      campaign: 'Zakat Al-Fitr Fund',
-      raised: 9800,
-      goal: 15000,
-      emoji: '🤲',
-      lat: center.lat + 0.017,
-      lng: center.lng + 0.023,
-    },
-  ];
+const PLACES_API_KEY = 'AIzaSyAJ4MHDj64tyaEtakZd9mZ3UKfKrHhGwNs';
+
+// Haversine distance in km between two coords
+function getDistanceKm(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number,
+): string {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
+  const km = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
+
+type Org = {
+  id: string;
+  name: string;
+  type: 'Masjid' | 'Charity';
+  distance: string;
+  address: string;
+  campaign: string;
+  raised: number;
+  goal: number;
+  emoji: string;
+  lat: number;
+  lng: number;
+};
 
 export default function MapScreen({navigation, route}: Props) {
   const {city} = route.params;
   const [activeTab, setActiveTab] = useState<'all' | 'masjid' | 'charity'>('all');
   const [search, setSearch] = useState('');
+  const [orgs, setOrgs] = useState<Org[]>([]);
+  const [fetching, setFetching] = useState(true);
 
   const cityCenter = getCityCoords(city);
-  const MOCK_ORGS = buildMockOrgs(cityCenter);
 
-  const filtered = MOCK_ORGS.filter(o => {
+  useEffect(() => {
+    const fetchMosques = async () => {
+      setFetching(true);
+      try {
+        const {lat, lng} = cityCenter;
+        const url =
+          `https://maps.googleapis.com/maps/api/place/nearbysearch/json` +
+          `?location=${lat},${lng}&radius=10000&type=mosque&key=${PLACES_API_KEY}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.results && data.results.length > 0) {
+          const mapped: Org[] = data.results.slice(0, 15).map((p: any, i: number) => ({
+            id: p.place_id,
+            name: p.name,
+            type: 'Masjid' as const,
+            distance: getDistanceKm(lat, lng, p.geometry.location.lat, p.geometry.location.lng),
+            address: p.vicinity || '',
+            campaign: 'Support this masjid',
+            raised: 0,
+            goal: 10000,
+            emoji: '🕌',
+            lat: p.geometry.location.lat,
+            lng: p.geometry.location.lng,
+          }));
+          setOrgs(mapped);
+        }
+      } catch (e) {
+        console.warn('Places API error:', e);
+      } finally {
+        setFetching(false);
+      }
+    };
+    fetchMosques();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city]);
+
+  const filtered = orgs.filter(o => {
     const matchesTab =
       activeTab === 'masjid' ? o.type === 'Masjid' :
       activeTab === 'charity' ? o.type === 'Charity' :
       true;
     const matchesSearch = search.trim() === '' ||
       o.name.toLowerCase().includes(search.toLowerCase()) ||
-      o.campaign.toLowerCase().includes(search.toLowerCase());
+      o.address.toLowerCase().includes(search.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
@@ -213,7 +231,13 @@ export default function MapScreen({navigation, route}: Props) {
         style={styles.list}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{paddingBottom: 24}}>
-        {filtered.length === 0 && (
+        {fetching && (
+          <View style={styles.emptyState}>
+            <ActivityIndicator color="#00e676" size="large" />
+            <Text style={styles.emptySubText}>Finding masajid near {city}...</Text>
+          </View>
+        )}
+        {!fetching && filtered.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>🕌</Text>
             <Text style={styles.emptyText}>No results found</Text>
@@ -230,7 +254,8 @@ export default function MapScreen({navigation, route}: Props) {
                 </View>
                 <View style={styles.cardInfo}>
                   <Text style={styles.orgName}>{org.name}</Text>
-                  <Text style={styles.orgMeta}>{org.type} · {org.distance} away</Text>
+                  <Text style={styles.orgMeta}>{org.distance} away</Text>
+                  {org.address ? <Text style={styles.orgAddress} numberOfLines={1}>{org.address}</Text> : null}
                 </View>
                 <TouchableOpacity style={styles.donateBtn}>
                   <Text style={styles.donateBtnText}>Give</Text>
@@ -420,6 +445,11 @@ const styles = StyleSheet.create({
   orgMeta: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.35)',
+  },
+  orgAddress: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.25)',
+    marginTop: 1,
   },
   donateBtn: {
     backgroundColor: GREEN,

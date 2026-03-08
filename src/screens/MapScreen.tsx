@@ -10,6 +10,7 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
+import {Platform} from 'react-native';
 import MapView, {Marker, PROVIDER_GOOGLE} from 'react-native-maps';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -170,7 +171,7 @@ export default function MapScreen({navigation, route}: Props) {
 
       {/* Map */}
       <MapView
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         style={styles.map}
         initialRegion={{
           latitude: cityCenter.lat,
@@ -178,7 +179,7 @@ export default function MapScreen({navigation, route}: Props) {
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         }}
-        customMapStyle={darkMapStyle}>
+        customMapStyle={Platform.OS === 'android' ? darkMapStyle : []}>
         {filtered.map(org => (
           <Marker
             key={org.id}
